@@ -7,12 +7,22 @@ Automatically translate, analyze sentiment, categorize, and store data persisten
 Provides admins secure access to summaries and management tools.
 
 Features:
-- Anonymous suggestions with language detection, translation, sentiment analysis, categorization
-- Anonymous questions with multiple answers and search
-- Persistent data storage in text files
-- Admin mode (password protected) for viewing summary and deleting all data
-- Robust input validation and error handling
-- Friendly user prompts and clean output
+- Employees can submit anonymous suggestions and questions via a simple text menu.
+- Suggestions can be entered in any language; the program automatically detects the 
+  language and translates input to English.
+- Each suggestion is analyzed for sentiment (positive, neutral, or negative), helping 
+  management understand the tone behind the feedback.
+- Suggestions are automatically categorized into business-relevant areas like Facility, 
+  Work Process, or Benefits based on keywords, making it easier to identify patterns and prioritize action.
+- Employees can also submit anonymous questions, view previously submitted questions, and 
+  add multiple answers collaboratively, promoting transparency and shared knowledge.
+- All suggestions and questions are saved persistently to text files (using JSON format for suggestions) 
+  so the feedback remains available across program restarts, ensuring no data loss.
+- An admin mode, protected by password, allows authorized personnel to view summaries, manage data, 
+  and delete all stored feedback when necessary — adding a layer of security and control.
+- The program includes robust input validation and error handling, ensuring smooth user experience without crashes.
+- User prompts and outputs are designed to be clear and friendly, encouraging honest communication without 
+  fear of judgment or exposure.
 
 APIs used:
 - langdetect: language detection
@@ -26,6 +36,7 @@ Run Requirements:
 """
 
 import random
+import json
 from langdetect import detect
 from googletrans import Translator
 from textblob import TextBlob
@@ -60,28 +71,27 @@ QUESTIONS_FILE = "questions.txt"
 ADMIN_PASSWORD = "admin123"
 
 # ------------------- File I/O -------------------
-"""
-    Loads saved suggestions from file into the program and sorts them into categories.
-    Ensures previously submitted feedback is available when the program starts.
-"""
+
 def load_suggestions():
+    """Load saved suggestions from file (JSON lines) and categorize."""
     if os.path.exists(SUGGESTIONS_FILE):
         with open(SUGGESTIONS_FILE, "r", encoding="utf-8") as f:
             for line in f:
-                suggestion = line.strip()
-                if suggestion:
-                    suggestions.append(suggestion)
-                    categorize_suggestion(suggestion)
+                line = line.strip()
+                if line:
+                    try:
+                        suggestion_entry = json.loads(line)
+                        suggestions.append(suggestion_entry)
+                        categorize_suggestion(suggestion_entry['text'])
+                    except json.JSONDecodeError:
+                        print("[Warning] Skipping invalid suggestion entry in file.")
 
-#Adds a new suggestion to the suggestions file to save it permanently.
 def save_suggestion(suggestion):
-    """Append a suggestion to the suggestions file."""
+    """Append a suggestion dict as a JSON string to the suggestions file."""
     with open(SUGGESTIONS_FILE, "a", encoding="utf-8") as f:
-        f.write(suggestion + "\n")
+        f.write(json.dumps(suggestion) + "\n")
 
-
-
-#Load questions and answers from file into memory.
+# Load questions and answers from file into memory.
 def load_questions():
     if os.path.exists(QUESTIONS_FILE):
         with open(QUESTIONS_FILE, "r", encoding="utf-8") as f:
@@ -97,10 +107,8 @@ def load_questions():
                 elif line == "---":
                     current_question = None
 
-
 # Append question and optional answer to file.
 def save_question(question, answer=None):
-
     with open(QUESTIONS_FILE, "a", encoding="utf-8") as f:
         f.write(f"Q: {question}\n")
         if answer is not None:
@@ -121,6 +129,7 @@ def delete_all_data():
     print("All suggestions and questions deleted.")
 
 # ------------------- Core Features -------------------
+
 def detect_and_translate(text):
     """Detect language and translate to English if needed."""
     try:
@@ -153,9 +162,9 @@ def categorize_suggestion(text):
     text_lower = text.lower()
     for category, keywords in category_keywords.items():
         if any(k in text_lower for k in keywords):
-            categories[category].append(text)
+            categories[category].append({'text': text})
             return category
-    categories["Other"].append(text)
+    categories["Other"].append({'text': text})
     return "Other"
 
 def add_suggestion():
@@ -164,7 +173,7 @@ def add_suggestion():
     sentiment = analyze_sentiment(translated)
     suggestion_entry = {"text": translated, "sentiment": sentiment}
     suggestions.append(suggestion_entry)
-    save_suggestion(suggestion_entry)  # Adjust save function accordingly
+    save_suggestion(suggestion_entry)
     category = categorize_suggestion(translated)
     print(f"\nSuggestion (translated): {translated}")
     print(f"Sentiment: {sentiment}")
@@ -253,12 +262,19 @@ def view_suggestions_by_category():
             print(f"\nSuggestions under '{selected_cat}':")
             for i, suggestion_entry in enumerate(suggestions_in_cat, 1):
                 # suggestion_entry is dict {'text':..., 'sentiment':...}
-                print(f"{i}. {suggestion_entry['text']} (Sentiment: {suggestion_entry['sentiment']})")
+                # Our categorize_suggestion only stores {'text': text} in category lists,
+                # so to show sentiment, we find it from suggestions list
+                # Let's find sentiment by matching text in suggestions:
+                sentiment = "Unknown"
+                for sug in suggestions:
+                    if sug['text'] == suggestion_entry['text']:
+                        sentiment = sug.get('sentiment', 'Unknown')
+                        break
+                print(f"{i}. {suggestion_entry['text']} (Sentiment: {sentiment})")
         else:
             print(f"\nNo suggestions yet under '{selected_cat}'.")
     else:
         print("Invalid choice.")
-
 
 # ------------------- Admin Functions -------------------
 
@@ -305,7 +321,7 @@ def main():
         print("4. Submit a Question")
         print("5. List Questions and View/Add Answers")
         print("6. Exit")
-        print("7. Admin Mode")  # if you have admin mode
+        print("7. Admin Mode")
 
         choice = input("Choose an option (1-7): ").strip()
 
@@ -314,7 +330,7 @@ def main():
         elif choice == '2':
             view_summary()
         elif choice == '3':
-            view_suggestions_by_category()  # call new function
+            view_suggestions_by_category()
         elif choice == '4':
             add_question()
         elif choice == '5':
@@ -327,6 +343,15 @@ def main():
         else:
             print("Invalid input. Please enter a number from 1 to 7.")
 
+        while True:
+            cont = input("\nWould you like to return to the Main Menu? (yes/no): ").strip().lower()
+            if cont == 'yes':
+                break
+            elif cont == 'no':
+                print("Thank you for using the Suggestion Box. Goodbye!")
+                return
+            else:
+                print("Please type 'yes' or 'no'.")
 
 if __name__ == "__main__":
     main()
