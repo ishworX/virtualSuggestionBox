@@ -1,14 +1,28 @@
 """
-Mini Virtual Suggestion Box 
+Mini Virtual Suggestion Box - Final Version 
+
+Business Problem:
+Collect anonymous employee suggestions and questions across languages.
+Automatically translate, analyze sentiment, categorize, and store data persistently.
+Provides admins secure access to summaries and management tools.
 
 Features:
-- View suggestion summary (counts by category)
-- View a random suggestion
-- List all questions and view/add multiple answers
-- Persistent storage: load/save suggestions and questions to files
-- Improved input validation and error handling
+- Anonymous suggestions with language detection, translation, sentiment analysis, categorization
+- Anonymous questions with multiple answers and search
+- Persistent data storage in text files
+- Admin mode (password protected) for viewing summary and deleting all data
+- Robust input validation and error handling
+- Friendly user prompts and clean output
 
-Demonstrates Python concepts: lists, dictionaries, functions, flow control, file I/O, and API usage.
+APIs used:
+- langdetect: language detection
+- googletrans: translation
+- TextBlob: sentiment analysis
+
+Run Requirements:
+- Python 3
+- pip install langdetect googletrans==4.0.0rc1 textblob
+- python -m textblob.download_corpora
 """
 
 import random
@@ -16,13 +30,15 @@ from langdetect import detect
 from googletrans import Translator
 from textblob import TextBlob
 import os
+import getpass
 
 translator = Translator()
 
-# Data storage structures
-suggestions = []  # List of translated suggestions
-questions = {}    # Dict: question (str) -> list of answers (list of str)
+# Data storage
+suggestions = []  # list of translated suggestions
+questions = {}    # dict: question -> list of answers
 
+# Categorization
 categories = {
     "Facility": [],
     "Work Process": [],
@@ -36,12 +52,19 @@ category_keywords = {
     "Benefits": ["bonus", "leave", "health", "insurance", "raise", "salary"]
 }
 
-# File paths for persistence
+# Files
 SUGGESTIONS_FILE = "suggestions.txt"
 QUESTIONS_FILE = "questions.txt"
 
+# Admin password (change as desired)
+ADMIN_PASSWORD = "admin123"
+
+# ------------------- File I/O -------------------
+"""
+    Loads saved suggestions from file into the program and sorts them into categories.
+    Ensures previously submitted feedback is available when the program starts.
+"""
 def load_suggestions():
-    """Load suggestions from file and categorize them."""
     if os.path.exists(SUGGESTIONS_FILE):
         with open(SUGGESTIONS_FILE, "r", encoding="utf-8") as f:
             for line in f:
@@ -50,13 +73,16 @@ def load_suggestions():
                     suggestions.append(suggestion)
                     categorize_suggestion(suggestion)
 
+#Adds a new suggestion to the suggestions file to save it permanently.
 def save_suggestion(suggestion):
-    """Append a new suggestion to the suggestions file."""
+    """Append a suggestion to the suggestions file."""
     with open(SUGGESTIONS_FILE, "a", encoding="utf-8") as f:
         f.write(suggestion + "\n")
 
+
+
+#Load questions and answers from file into memory.
 def load_questions():
-    """Load questions and their answers from file."""
     if os.path.exists(QUESTIONS_FILE):
         with open(QUESTIONS_FILE, "r", encoding="utf-8") as f:
             current_question = None
@@ -71,14 +97,30 @@ def load_questions():
                 elif line == "---":
                     current_question = None
 
+
+# Append question and optional answer to file.
 def save_question(question, answer=None):
-    """Append a question and optionally an answer to the questions file."""
+
     with open(QUESTIONS_FILE, "a", encoding="utf-8") as f:
         f.write(f"Q: {question}\n")
         if answer is not None:
             f.write(f"A: {answer}\n")
         f.write("---\n")
 
+def delete_all_data():
+    """ Delete all stored suggestions and questions files and clear memory. """
+    global suggestions, questions, categories
+    suggestions.clear()
+    questions.clear()
+    for cat in categories:
+        categories[cat].clear()
+    if os.path.exists(SUGGESTIONS_FILE):
+        os.remove(SUGGESTIONS_FILE)
+    if os.path.exists(QUESTIONS_FILE):
+        os.remove(QUESTIONS_FILE)
+    print("All suggestions and questions deleted.")
+
+# ------------------- Core Features -------------------
 def detect_and_translate(text):
     """Detect language and translate to English if needed."""
     try:
@@ -89,14 +131,13 @@ def detect_and_translate(text):
         else:
             return text
     except Exception as e:
-        print(f"[Error] Language detection or translation failed: {e}")
+        print(f"[Warning] Language detection/translation failed: {e}")
         return text
 
 def analyze_sentiment(text):
-    """Analyze sentiment polarity and return category."""
+    """Return sentiment classification of text."""
     try:
-        blob = TextBlob(text)
-        polarity = blob.sentiment.polarity
+        polarity = TextBlob(text).sentiment.polarity
         if polarity > 0.1:
             return "Positive"
         elif polarity < -0.1:
@@ -104,47 +145,33 @@ def analyze_sentiment(text):
         else:
             return "Neutral"
     except Exception as e:
-        print(f"[Error] Sentiment analysis failed: {e}")
+        print(f"[Warning] Sentiment analysis failed: {e}")
         return "Neutral"
 
 def categorize_suggestion(text):
-    """Categorize suggestion and store it."""
+    """Categorize suggestion and store it in categories dict."""
     text_lower = text.lower()
     for category, keywords in category_keywords.items():
-        if any(keyword in text_lower for keyword in keywords):
+        if any(k in text_lower for k in keywords):
             categories[category].append(text)
             return category
     categories["Other"].append(text)
     return "Other"
 
 def add_suggestion():
-    """Prompt and process a suggestion."""
+    """Handle anonymous suggestion input and processing."""
     original = input("Enter your anonymous suggestion: ")
     translated = detect_and_translate(original)
     sentiment = analyze_sentiment(translated)
     suggestions.append(translated)
     save_suggestion(translated)
     category = categorize_suggestion(translated)
-    print(f"Suggestion (translated): {translated}")
+    print(f"\nSuggestion (translated): {translated}")
     print(f"Sentiment: {sentiment}")
     print(f"Categorized under: {category}")
 
-def view_summary():
-    """Print counts of suggestions by category."""
-    print("\nSuggestion Summary:")
-    for category, items in categories.items():
-        print(f"{category}: {len(items)}")
-
-def random_suggestion():
-    """Display a random suggestion if available."""
-    if suggestions:
-        print("\nRandom Suggestion:")
-        print(random.choice(suggestions))
-    else:
-        print("\nNo suggestions available yet.")
-
 def add_question():
-    """Prompt user to submit a question if not duplicate."""
+    """Handle anonymous question input and processing."""
     question = input("Enter your anonymous question: ")
     translated_q = detect_and_translate(question)
     if translated_q not in questions:
@@ -155,26 +182,26 @@ def add_question():
         print("This question already exists.")
 
 def list_questions():
-    """List all questions, view their answers, and add new answers."""
+    """List all questions; view and add answers."""
     if not questions:
-        print("\nNo questions have been submitted yet.")
+        print("\nNo questions submitted yet.")
         return
 
     while True:
         print("\nList of Questions:")
-        question_list = list(questions.keys())
-        for idx, q in enumerate(question_list, 1):
+        q_list = list(questions.keys())
+        for idx, q in enumerate(q_list, 1):
             print(f"{idx}. {q}")
 
-        choice = input("Enter the number of a question to view its answers (or '0' to return): ")
+        choice = input("Enter question number to view answers or 0 to return: ").strip()
         if not choice.isdigit():
             print("Please enter a valid number.")
             continue
         num = int(choice)
         if num == 0:
             break
-        if 1 <= num <= len(question_list):
-            q = question_list[num - 1]
+        if 1 <= num <= len(q_list):
+            q = q_list[num - 1]
             answers = questions[q]
             print(f"\nAnswers for: {q}")
             if answers:
@@ -182,28 +209,70 @@ def list_questions():
                     print(f"Answer {i}: {ans}")
             else:
                 print("No answers yet.")
+
             while True:
-                add_ans = input("Do you want to add an answer to this question? (yes/no): ").strip().lower()
-                if add_ans == "yes":
-                    new_answer = input("Enter your answer: ")
-                    questions[q].append(new_answer)
-                    save_question(q, new_answer)
+                add_ans = input("Add an answer? (yes/no): ").strip().lower()
+                if add_ans == 'yes':
+                    new_ans = input("Enter your answer: ")
+                    questions[q].append(new_ans)
+                    save_question(q, new_ans)
                     print("Answer added.")
-                    # Show updated answers after adding
-                    print(f"\nUpdated answers for: {q}")
-                    for i, ans in enumerate(questions[q], 1):
-                        print(f"Answer {i}: {ans}")
                     break
-                elif add_ans == "no":
+                elif add_ans == 'no':
                     break
                 else:
                     print("Please type 'yes' or 'no'.")
         else:
-            print("Invalid number. Try again.")
+            print("Invalid question number.")
+
+def view_summary():
+    """Show counts of suggestions per category."""
+    print("\nSuggestion Summary:")
+    for category, items in categories.items():
+        print(f"{category}: {len(items)}")
+
+def random_suggestion():
+    """Show a random suggestion."""
+    if suggestions:
+        print("\nRandom Suggestion:")
+        print(random.choice(suggestions))
+    else:
+        print("\nNo suggestions available yet.")
+
+# ------------------- Admin Functions -------------------
+
+def admin_menu():
+    """Admin-only menu with password protection."""
+    pw = getpass.getpass("Enter admin password: ")
+    if pw != ADMIN_PASSWORD:
+        print("Incorrect password. Access denied.")
+        return
+    while True:
+        print("\n--- Admin Menu ---")
+        print("1. View Suggestion Summary")
+        print("2. List Questions and Answers")
+        print("3. Delete All Suggestions and Questions")
+        print("4. Exit Admin Menu")
+        choice = input("Choose an option (1-4): ").strip()
+        if choice == '1':
+            view_summary()
+        elif choice == '2':
+            list_questions()
+        elif choice == '3':
+            confirm = input("Are you sure? This will delete all data. (yes/no): ").strip().lower()
+            if confirm == 'yes':
+                delete_all_data()
+            else:
+                print("Deletion cancelled.")
+        elif choice == '4':
+            break
+        else:
+            print("Invalid choice. Enter 1-4.")
+
+# ------------------- Main Loop -------------------
 
 def main():
-    """Main program loop with menu and input validation."""
-    # Load data from files on startup
+    # Load persisted data on program start
     load_suggestions()
     load_questions()
 
@@ -215,8 +284,10 @@ def main():
         print("4. Submit a Question")
         print("5. List Questions and View/Add Answers")
         print("6. Exit")
+        print("7. Admin Mode")  # <-- Add this line
 
-        choice = input("Choose an option (1-6): ").strip()
+        choice = input("Choose an option (1-7): ")  # <-- Update here too
+
         if choice == '1':
             add_suggestion()
         elif choice == '2':
@@ -230,10 +301,12 @@ def main():
         elif choice == '6':
             print("Thank you for using the Suggestion Box. Goodbye!")
             break
+        elif choice == '7':                # <-- Add this block
+            admin_menu()
         else:
-            print("Invalid input. Please enter a number from 1 to 6.")
+            print("Invalid choice. Please enter a number from 1 to 7.")
+            continue
 
-        # Ask if user wants to return to menu or exit
         while True:
             cont = input("\nWould you like to return to the Main Menu? (yes/no): ").strip().lower()
             if cont == 'yes':
