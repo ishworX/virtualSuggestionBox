@@ -65,5 +65,29 @@ This helps management better understand employee needs and improves workplace co
    pip install textblob langdetect googletrans==4.0.0rc1
    python -m textblob.download_corpora
 
-## Run the program:
- ```python suggestion_box.py
+3. Run the program:
+
+   ```bash
+   python suggestion_box.py
+   ```
+
+4. Follow on-screen menu options to submit or view suggestions/questions 🎉
+
+---
+
+## ⚠️ Notes
+
+- Requires an active internet connection 🌐 for translation services  
+- Data is stored only during runtime (no file saving)  
+- Categorization and question searching use simple keyword matching
+
+---
+
+## 💡 Why This Matters
+
+Your feedback helps companies build a more inclusive, transparent, and responsive workplace!  
+By breaking down language barriers and encouraging honest communication, this tool drives better employee engagement and business success.
+
+---
+
+**Happy coding and happy feedback!** 🎈🚀
