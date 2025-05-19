@@ -35,7 +35,7 @@ import getpass
 translator = Translator()
 
 # Data storage
-suggestions = []  # list of translated suggestions
+suggestions = []  # Each element: {'text': "...", 'sentiment': "Positive"/"Neutral"/"Negative"}
 questions = {}    # dict: question -> list of answers
 
 # Categorization
@@ -159,12 +159,12 @@ def categorize_suggestion(text):
     return "Other"
 
 def add_suggestion():
-    """Handle anonymous suggestion input and processing."""
     original = input("Enter your anonymous suggestion: ")
     translated = detect_and_translate(original)
     sentiment = analyze_sentiment(translated)
-    suggestions.append(translated)
-    save_suggestion(translated)
+    suggestion_entry = {"text": translated, "sentiment": sentiment}
+    suggestions.append(suggestion_entry)
+    save_suggestion(suggestion_entry)  # Adjust save function accordingly
     category = categorize_suggestion(translated)
     print(f"\nSuggestion (translated): {translated}")
     print(f"Sentiment: {sentiment}")
@@ -231,13 +231,34 @@ def view_summary():
     for category, items in categories.items():
         print(f"{category}: {len(items)}")
 
-def random_suggestion():
-    """Show a random suggestion."""
-    if suggestions:
-        print("\nRandom Suggestion:")
-        print(random.choice(suggestions))
+def view_suggestions_by_category():
+    categories_list = list(categories.keys())
+    print("\nCategories and suggestion counts:")
+    print("{:<5} {:<15} {}".format("No.", "Category", "Suggestion Count"))
+    print("-" * 35)
+    for i, cat in enumerate(categories_list, 1):
+        count = len(categories[cat])
+        print(f"{i:<5} {cat:<15} {count}")
+    choice = input(f"\nChoose a category to view suggestions (1-{len(categories_list)}), or 0 to return: ").strip()
+    if not choice.isdigit():
+        print("Please enter a valid number.")
+        return
+    choice_num = int(choice)
+    if choice_num == 0:
+        return
+    if 1 <= choice_num <= len(categories_list):
+        selected_cat = categories_list[choice_num - 1]
+        suggestions_in_cat = categories[selected_cat]
+        if suggestions_in_cat:
+            print(f"\nSuggestions under '{selected_cat}':")
+            for i, suggestion_entry in enumerate(suggestions_in_cat, 1):
+                # suggestion_entry is dict {'text':..., 'sentiment':...}
+                print(f"{i}. {suggestion_entry['text']} (Sentiment: {suggestion_entry['sentiment']})")
+        else:
+            print(f"\nNo suggestions yet under '{selected_cat}'.")
     else:
-        print("\nNo suggestions available yet.")
+        print("Invalid choice.")
+
 
 # ------------------- Admin Functions -------------------
 
@@ -280,20 +301,20 @@ def main():
         print("\nMini Virtual Suggestion Box Menu")
         print("1. Submit a Suggestion")
         print("2. View Suggestion Summary")
-        print("3. View a Random Suggestion")
+        print("3. View Suggestions by Category")  # updated menu text
         print("4. Submit a Question")
         print("5. List Questions and View/Add Answers")
         print("6. Exit")
-        print("7. Admin Mode")  # <-- Add this line
+        print("7. Admin Mode")  # if you have admin mode
 
-        choice = input("Choose an option (1-7): ")  # <-- Update here too
+        choice = input("Choose an option (1-7): ").strip()
 
         if choice == '1':
             add_suggestion()
         elif choice == '2':
             view_summary()
         elif choice == '3':
-            random_suggestion()
+            view_suggestions_by_category()  # call new function
         elif choice == '4':
             add_question()
         elif choice == '5':
@@ -301,21 +322,11 @@ def main():
         elif choice == '6':
             print("Thank you for using the Suggestion Box. Goodbye!")
             break
-        elif choice == '7':                # <-- Add this block
+        elif choice == '7':
             admin_menu()
         else:
-            print("Invalid choice. Please enter a number from 1 to 7.")
-            continue
+            print("Invalid input. Please enter a number from 1 to 7.")
 
-        while True:
-            cont = input("\nWould you like to return to the Main Menu? (yes/no): ").strip().lower()
-            if cont == 'yes':
-                break
-            elif cont == 'no':
-                print("Thank you for using the Suggestion Box. Goodbye!")
-                return
-            else:
-                print("Please type 'yes' or 'no'.")
 
 if __name__ == "__main__":
     main()
