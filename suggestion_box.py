@@ -2,9 +2,8 @@
 Mini Virtual Suggestion Box - Final Version 
 
 Business Problem:
-Collect anonymous employee suggestions and questions across languages.
-Automatically translate, analyze sentiment, categorize, and store data persistently.
-Provides admins secure access to summaries and management tools.
+Many companies struggle to collect honest, anonymous employee feedback, especially in multinational environments where language barriers exist.  
+Employees may fear judgment or repercussions, reducing valuable input that could improve workplace conditions and processes.
 
 Features:
 - Employees can submit anonymous suggestions and questions via a simple text menu.
@@ -24,15 +23,23 @@ Features:
 - User prompts and outputs are designed to be clear and friendly, encouraging honest communication without 
   fear of judgment or exposure.
 
-APIs used:
-- langdetect: language detection
-- googletrans: translation
-- TextBlob: sentiment analysis
+APIs Used:
+- langdetect: Detects the language of input text  
+- googletrans: Translates non-English input to English  
+- TextBlob: Performs sentiment analysis on suggestions
 
-Run Requirements:
-- Python 3
-- pip install langdetect googletrans==4.0.0rc1 textblob
-- python -m textblob.download_corpora
+How to Run:
+1. Ensure Python 3 is installed.  
+2. Install dependencies with:  
+   pip install langdetect googletrans==4.0.0rc1 textblob  
+3. Download required TextBlob corpora:  
+   python -m textblob.download_corpora  
+4. Run the program:  
+   python suggestion_box.py  
+5. Use the on-screen menu to submit/view suggestions and questions or enter admin mode.
+
+Author: Ishwor Tandon
+Date: May 21st 2025
 """
 
 import random
@@ -241,6 +248,12 @@ def view_summary():
         print(f"{category}: {len(items)}")
 
 def view_suggestions_by_category():
+    """
+    Displays all suggestion categories along with how many suggestions each contains.
+    Prompts the user to select a category to view its suggestions.
+    For the chosen category, lists all suggestions with their associated sentiment (Positive, Neutral, Negative).
+    Handles invalid inputs gracefully and allows the user to return to the previous menu.
+    """
     categories_list = list(categories.keys())
     print("\nCategories and suggestion counts:")
     print("{:<5} {:<15} {}".format("No.", "Category", "Suggestion Count"))
@@ -261,10 +274,7 @@ def view_suggestions_by_category():
         if suggestions_in_cat:
             print(f"\nSuggestions under '{selected_cat}':")
             for i, suggestion_entry in enumerate(suggestions_in_cat, 1):
-                # suggestion_entry is dict {'text':..., 'sentiment':...}
-                # Our categorize_suggestion only stores {'text': text} in category lists,
-                # so to show sentiment, we find it from suggestions list
-                # Let's find sentiment by matching text in suggestions:
+                # Find sentiment from main suggestions list by matching text
                 sentiment = "Unknown"
                 for sug in suggestions:
                     if sug['text'] == suggestion_entry['text']:
